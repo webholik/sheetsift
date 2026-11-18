@@ -22,7 +22,7 @@ import FilePick from "@/components/FilePick.vue";
 import DataGrid from "sheetsift-ui/components/DataGrid.vue";
 import { listScreens, openBook, openBookAt } from "@/lib/workbook";
 import type { HeaderSpec, ScreenCatalog, ScreenDef } from "sheetsift-ui/lib/grid";
-import { start } from "sheetsift-book";
+import { start, onOpenFiles } from "sheetsift-book";
 import { useFault } from "sheetsift-ui/composables/useFault";
 import LocaleToggle from "@/components/LocaleToggle.vue";
 import StartScreen from "@/components/StartScreen.vue";
@@ -210,9 +210,23 @@ onMounted(() => {
 });
 onBeforeUnmount(() => observer?.disconnect());
 
+let unlistenFiles: (() => void) | undefined;
+let disposed = false;
+onBeforeUnmount(() => {
+  disposed = true;
+  unlistenFiles?.();
+});
+
 onMounted(async () => {
   try {
     await start();
+    starting.value = false;
+    if (disposed) return;
+    const stop = await onOpenFiles((path, name) => {
+      if (!disposed) void pickAt(path, name).catch(captureFault);
+    }, captureFault);
+    if (disposed) stop();
+    else unlistenFiles = stop;
   } catch (e) {
     captureFault(e);
   } finally {
@@ -243,7 +257,15 @@ async function pickAt(path: string, name: string) {
   await opened(name, () => openBookAt(path));
 }
 
-async function opened(name: string, open: () => Promise<ScreenCatalog>) {
+// 선택·투입·운영체제 요청을 직렬화해 양식 교체 중의 상태 혼입을 차단한다.
+let pendingOpen = Promise.resolve();
+function opened(name: string, open: () => Promise<ScreenCatalog>): Promise<void> {
+  const next = pendingOpen.then(() => openNow(name, open));
+  pendingOpen = next.catch(() => {});
+  return next;
+}
+
+async function openNow(name: string, open: () => Promise<ScreenCatalog>) {
   busy.value = true;
   clearFault();
   screens.value = [];

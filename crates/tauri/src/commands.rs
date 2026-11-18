@@ -19,6 +19,12 @@ use tauri::State;
 /// 창이 보유하는 상태. 명령이 복수의 스레드에서 도달한다.
 type Held<'a> = State<'a, Mutex<Desk>>;
 
+/// 운영체제가 전달한 경로를 한 번만 수령한다. 화면의 기동 전 요청도 포함한다.
+#[tauri::command]
+pub fn take_open_files(files: State<'_, crate::open_files::OpenFiles>) -> Vec<PathBuf> {
+    files.take()
+}
+
 /// **잠금이 훼손되었으면 중단한다.** 타 명령이 패닉한 상태를 그대로 경과시키면,
 /// 무엇이 개방되어 있는지 인지하지 못한 채 조회가 진행된다.
 fn held<'a>(desk: &'a Held<'a>) -> std::sync::MutexGuard<'a, Desk> {

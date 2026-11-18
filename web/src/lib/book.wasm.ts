@@ -158,3 +158,11 @@ export function canPickFile(): boolean {
 export function pickFile(): Promise<{ path: string; name: string } | null> {
   return Promise.resolve(null);
 }
+
+/** 브라우저에는 운영체제의 파일 개방 사건이 부재한다. */
+export function onOpenFiles(
+  _open: (path: string, name: string) => void,
+  _fault: (error: unknown) => void,
+): Promise<() => void> {
+  return Promise.resolve(() => {});
+}

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "check": "vue-tsc -b"
+    "check": "vue-tsc -b",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",
@@ -23,6 +24,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
+    "vitest": "^5.1.0",
     "vue-tsc": "^3.3.11"
   }
 }

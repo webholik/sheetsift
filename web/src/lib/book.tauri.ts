@@ -10,6 +10,7 @@
  * 파일 전체가 1회 적재되어, 데스크톱이 해소하려는 제약이 그대로 잔존한다.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open as pick } from "@tauri-apps/plugin-dialog";
 import type { AppErrorPayload, ErrorCode } from "@/i18n/codes";
 import { formatError, t } from "@/i18n";
@@ -166,4 +167,29 @@ export async function pickFile(): Promise<{ path: string; name: string } | null>
      포함되고, 그 화면은 갈무리되어 외부로 반출된다. */
   const name = chosen.split(/[\\/]/).pop() || chosen;
   return { path: chosen, name };
+}
+
+/** 통지를 먼저 구독한 뒤 기동 전 요청을 수령해 그 사이의 요청도 보전한다. */
+export async function onOpenFiles(
+  open: (path: string, name: string) => void,
+  fault: (error: unknown) => void,
+): Promise<() => void> {
+  let active = true;
+  let pending = Promise.resolve();
+  function drain() {
+    pending = pending.then(async () => {
+      if (!active) return;
+      const paths = await call<string[]>("take_open_files");
+      if (active) {
+        for (const path of paths) open(path, path.split(/[\\/]/).pop() || path);
+      }
+    }).catch(fault);
+    return pending;
+  }
+  const unlisten = await listen("files-opened", () => { void drain(); });
+  await drain();
+  return () => {
+    active = false;
+    return unlisten();
+  };
 }
